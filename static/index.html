@@ -1,0 +1,310 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Stock Market Pattern Analysis</title>
+<style>
+  :root {
+    --bg: #0e1117; --panel: #161b22; --panel2: #1f2630; --border: #2a2f3a;
+    --fg: #e6edf3; --muted: #8b949e; --accent: #58a6ff; --accent2: #1f6feb;
+    --green: #3fb950; --red: #f85149; --yellow: #d29922;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; font-size: 14px; }
+  .mono { font-family: "SF Mono", Menlo, Consolas, monospace; }
+  header { padding: 20px 28px; border-bottom: 1px solid var(--border); }
+  header h1 { margin: 0; font-size: 22px; font-weight: 600; }
+  header .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+  main { padding: 20px 28px; max-width: 1400px; margin: 0 auto; }
+  .controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 20px; }
+  .controls input { background: var(--panel); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 14px; }
+  .controls input[type="text"] { width: 120px; text-transform: uppercase; }
+  .controls input[type="number"] { width: 90px; }
+  button { background: var(--panel2); color: var(--fg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 14px; cursor: pointer; font-size: 14px; transition: .15s; }
+  button:hover { background: var(--accent2); border-color: var(--accent); }
+  button.active { background: var(--accent2); border-color: var(--accent); }
+  button.ghost { background: transparent; }
+  button.primary { background: var(--accent2); border-color: var(--accent); }
+  .tabs { display: none; }
+  .tabs.active { display: block; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+  .card h3 { margin: 0 0 8px; font-size: 15px; color: var(--accent); }
+  .synthesis { background: linear-gradient(135deg, #1f2a44, #1a2030); border: 1px solid var(--accent); border-radius: 8px; padding: 18px; margin-bottom: 16px; }
+  .synthesis h3 { margin: 0 0 8px; color: var(--accent); }
+  .synthesis .body { white-space: pre-wrap; line-height: 1.5; }
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+  th, td { text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+  th { background: var(--panel2); color: var(--muted); font-weight: 500; font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  tr:last-child td { border-bottom: none; }
+  td.num { font-family: "SF Mono", Menlo, Consolas, monospace; text-align: right; }
+  .pos { color: var(--green); }
+  .neg { color: var(--red); }
+  .loading { color: var(--muted); padding: 16px; font-style: italic; }
+  .error { color: var(--red); padding: 14px; background: rgba(248,81,73,0.08); border: 1px solid var(--red); border-radius: 6px; }
+  pre { white-space: pre-wrap; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 13px; color: var(--fg); margin: 0; line-height: 1.5; }
+  .chart-img { max-width: 100%; border: 1px solid var(--border); border-radius: 8px; background: #fff; cursor: pointer; }
+  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
+  .weights { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+  .wrow { display: flex; gap: 8px; align-items: center; }
+  .wrow input[type="text"] { width: 110px; text-transform: uppercase; }
+  .wrow input[type="number"] { width: 100px; }
+  .wrow button { padding: 6px 10px; }
+  .corr-grid { display: inline-grid; gap: 1px; background: var(--border); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-top: 12px; }
+  .corr-cell { background: var(--panel); padding: 10px 12px; min-width: 60px; text-align: center; font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 12px; }
+  .corr-cell.label { background: var(--panel2); color: var(--muted); font-weight: 600; }
+  .metrics { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 14px; }
+  .metric { background: var(--panel2); border: 1px solid var(--border); border-radius: 6px; padding: 10px 14px; min-width: 140px; }
+  .metric .k { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: .5px; }
+  .metric .v { font-family: "SF Mono", Menlo, Consolas, monospace; font-size: 16px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Stock Market Pattern Analysis</h1>
+  <div class="sub">Multi-agent AI</div>
+</header>
+<main>
+  <div class="controls">
+    <input id="symbol" type="text" value="AAPL" placeholder="Symbol">
+    <input id="days" type="number" value="180" min="1" max="3650">
+    <button data-tab="analyze">Analyze</button>
+    <button data-tab="backtest">Backtest</button>
+    <button data-tab="chart">Chart</button>
+    <button data-tab="portfolio">Portfolio</button>
+  </div>
+
+  <section id="tab-analyze" class="tabs"><div class="content"></div></section>
+  <section id="tab-backtest" class="tabs"><div class="content"></div></section>
+  <section id="tab-chart" class="tabs"><div class="content"></div></section>
+  <section id="tab-portfolio" class="tabs">
+    <div class="card">
+      <h3>Portfolio Weights</h3>
+      <div id="weights" class="weights"></div>
+      <div style="display:flex; gap:8px;">
+        <button id="add-weight" class="ghost">+ Add Symbol</button>
+        <button id="run-portfolio" class="primary">Run</button>
+      </div>
+      <div class="hint">Weights are normalized server-side. Days uses the value above.</div>
+    </div>
+    <div id="portfolio-result" class="content"></div>
+  </section>
+</main>
+
+<script>
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => document.querySelectorAll(s);
+
+  const state = { activeTab: null };
+
+  function setTab(name) {
+    state.activeTab = name;
+    $$('.tabs').forEach(t => t.classList.remove('active'));
+    $$('.controls button[data-tab]').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    $(`#tab-${name}`).classList.add('active');
+  }
+
+  function getSymbol() { return ($('#symbol').value || 'AAPL').trim().toUpperCase(); }
+  function getDays() { return parseInt($('#days').value, 10) || 180; }
+
+  function showLoading(el) { el.innerHTML = '<div class="loading">Loading...</div>'; }
+  function showError(el, msg) { el.innerHTML = `<div class="error">${escapeHtml(msg)}</div>`; }
+
+  function escapeHtml(s) {
+    return String(s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[c]));
+  }
+
+  function fmtNum(n, digits = 4) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '-';
+    return Number(n).toFixed(digits);
+  }
+  function fmtPct(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '-';
+    return (Number(n) * 100).toFixed(2) + '%';
+  }
+  function signClass(n) {
+    if (n === null || n === undefined || Number.isNaN(n)) return '';
+    return n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+  }
+
+  async function fetchJson(url, opts) {
+    const r = await fetch(url, opts);
+    if (!r.ok) throw new Error(`HTTP ${r.status}: ${await r.text()}`);
+    return r.json();
+  }
+
+  // Analyze
+  async function runAnalyze() {
+    const el = $('#tab-analyze .content');
+    showLoading(el);
+    try {
+      const data = await fetchJson(`/api/analyze/${encodeURIComponent(getSymbol())}?live=true`);
+      renderAnalyze(el, data);
+    } catch (e) { showError(el, e.message); }
+  }
+
+  function renderAnalyze(el, data) {
+    let html = '';
+    if (data.synthesis) {
+      html += `<div class="synthesis"><h3>Synthesis - ${escapeHtml(data.symbol || '')}</h3><div class="body">${escapeHtml(data.synthesis)}</div></div>`;
+    }
+    const agents = data.agents || [];
+    for (const a of agents) {
+      const name = a.agent || 'agent';
+      const { agent, ...rest } = a;
+      html += `<div class="card"><h3>${escapeHtml(name)}</h3><pre>${escapeHtml(JSON.stringify(rest, null, 2))}</pre></div>`;
+    }
+    if (!agents.length && !data.synthesis) {
+      html += `<div class="card"><pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre></div>`;
+    }
+    el.innerHTML = html;
+  }
+
+  // Backtest
+  async function runBacktest() {
+    const el = $('#tab-backtest .content');
+    showLoading(el);
+    try {
+      const data = await fetchJson(`/api/backtest/${encodeURIComponent(getSymbol())}?days=${getDays()}`);
+      renderBacktest(el, data);
+    } catch (e) { showError(el, e.message); }
+  }
+
+  function renderBacktest(el, data) {
+    const strategies = (data && typeof data === 'object') ? data : {};
+    const rows = Object.entries(strategies).filter(([, v]) => v && typeof v === 'object' && 'total_return' in v);
+    if (!rows.length) { el.innerHTML = `<div class="card"><pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre></div>`; return; }
+    let html = '<table><thead><tr><th>Strategy</th><th>Total Return</th><th>Trades</th><th>Win Rate</th><th>Avg Trade</th><th>Max DD</th></tr></thead><tbody>';
+    for (const [name, m] of rows) {
+      html += `<tr>
+        <td>${escapeHtml(name)}</td>
+        <td class="num ${signClass(m.total_return)}">${fmtPct(m.total_return)}</td>
+        <td class="num">${m.num_trades ?? '-'}</td>
+        <td class="num">${fmtPct(m.win_rate)}</td>
+        <td class="num ${signClass(m.avg_trade_return)}">${fmtPct(m.avg_trade_return)}</td>
+        <td class="num neg">${fmtPct(m.max_drawdown)}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }
+
+  // Chart
+  function runChart() {
+    const el = $('#tab-chart .content');
+    const sym = encodeURIComponent(getSymbol());
+    const days = getDays();
+    const url = `/api/chart/${sym}?days=${days}&_=${Date.now()}`;
+    el.innerHTML = `<div class="card"><h3>${escapeHtml(getSymbol())} - ${days}d</h3>
+      <img class="chart-img" src="${url}" alt="chart" title="Click to reload"
+           onerror="this.outerHTML='<div class=&quot;error&quot;>Failed to load chart</div>'">
+      <div class="hint">Click image to reload.</div></div>`;
+    const img = el.querySelector('img');
+    if (img) img.addEventListener('click', () => { img.src = `/api/chart/${sym}?days=${getDays()}&_=${Date.now()}`; });
+  }
+
+  // Portfolio
+  function addWeightRow(sym = '', w = '') {
+    const wrap = $('#weights');
+    const row = document.createElement('div');
+    row.className = 'wrow';
+    row.innerHTML = `
+      <input type="text" class="w-sym" placeholder="Symbol" value="${escapeHtml(sym)}">
+      <input type="number" step="0.01" class="w-val" placeholder="Weight" value="${escapeHtml(String(w))}">
+      <button class="ghost w-del">Remove</button>`;
+    row.querySelector('.w-del').addEventListener('click', () => row.remove());
+    wrap.appendChild(row);
+  }
+
+  async function runPortfolio() {
+    const el = $('#portfolio-result');
+    const weights = {};
+    $$('#weights .wrow').forEach(r => {
+      const s = r.querySelector('.w-sym').value.trim().toUpperCase();
+      const v = parseFloat(r.querySelector('.w-val').value);
+      if (s && !Number.isNaN(v)) weights[s] = v;
+    });
+    if (!Object.keys(weights).length) { showError(el, 'Add at least one symbol with a weight.'); return; }
+    showLoading(el);
+    try {
+      const data = await fetchJson('/api/portfolio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ weights, days: getDays() }),
+      });
+      renderPortfolio(el, data);
+    } catch (e) { showError(el, e.message); }
+  }
+
+  function renderPortfolio(el, data) {
+    let html = '';
+    const corr = data.correlation || data.correlation_matrix || null;
+    if (corr && typeof corr === 'object') {
+      const symbols = Object.keys(corr);
+      html += '<div class="card"><h3>Correlation Matrix</h3><div class="corr-grid" style="grid-template-columns: repeat(' + (symbols.length + 1) + ', auto);">';
+      html += '<div class="corr-cell label"></div>';
+      symbols.forEach(s => html += `<div class="corr-cell label">${escapeHtml(s)}</div>`);
+      for (const r of symbols) {
+        html += `<div class="corr-cell label">${escapeHtml(r)}</div>`;
+        for (const c of symbols) {
+          const v = corr[r]?.[c];
+          const n = Number(v);
+          const color = Number.isFinite(n) ? corrColor(n) : 'transparent';
+          html += `<div class="corr-cell" style="background:${color}">${Number.isFinite(n) ? n.toFixed(2) : '-'}</div>`;
+        }
+      }
+      html += '</div></div>';
+    }
+
+    const metricKeys = ['total_return','annual_return','volatility','sharpe','sharpe_ratio','max_drawdown','cagr'];
+    const metrics = [];
+    for (const k of metricKeys) if (k in data) metrics.push([k, data[k]]);
+    if (data.metrics && typeof data.metrics === 'object') {
+      for (const [k, v] of Object.entries(data.metrics)) metrics.push([k, v]);
+    }
+    if (metrics.length) {
+      html += '<div class="card"><h3>Portfolio Metrics</h3><div class="metrics">';
+      for (const [k, v] of metrics) {
+        const isPct = /return|drawdown|vol|cagr/i.test(k);
+        const num = Number(v);
+        const disp = Number.isFinite(num) ? (isPct ? fmtPct(num) : fmtNum(num, 3)) : escapeHtml(String(v));
+        const cls = Number.isFinite(num) ? signClass(num) : '';
+        html += `<div class="metric"><div class="k">${escapeHtml(k)}</div><div class="v ${cls}">${disp}</div></div>`;
+      }
+      html += '</div></div>';
+    }
+
+    if (!html) html = `<div class="card"><pre>${escapeHtml(JSON.stringify(data, null, 2))}</pre></div>`;
+    el.innerHTML = html;
+  }
+
+  function corrColor(v) {
+    const x = Math.max(-1, Math.min(1, v));
+    if (x >= 0) {
+      const a = (x * 0.55).toFixed(2);
+      return `rgba(63, 185, 80, ${a})`;
+    } else {
+      const a = (-x * 0.55).toFixed(2);
+      return `rgba(248, 81, 73, ${a})`;
+    }
+  }
+
+  // Wire up
+  $$('.controls button[data-tab]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const t = btn.dataset.tab;
+      setTab(t);
+      if (t === 'analyze') runAnalyze();
+      else if (t === 'backtest') runBacktest();
+      else if (t === 'chart') runChart();
+      // portfolio tab: user clicks Run explicitly
+    });
+  });
+  $('#add-weight').addEventListener('click', () => addWeightRow());
+  $('#run-portfolio').addEventListener('click', runPortfolio);
+
+  // Seed portfolio with a couple rows but do not fire any request
+  addWeightRow('AAPL', 0.5);
+  addWeightRow('MSFT', 0.5);
+</script>
+</body>
+</html>
